@@ -14,6 +14,18 @@ django-cors-headers
 # https://github.com/jazzband/django-debug-toolbar/blob/main/docs/changes.rst
 django-debug-toolbar
 
+# WebAuthn/passkey authentication
+# https://github.com/mkalioby/django-passkeys
+django-passkeys
+
+# FIDO2/WebAuthn library (required by django-passkeys)
+# https://github.com/Yubico/python-fido2
+fido2
+
+# User-agent string parsing (required by django-passkeys)
+# https://github.com/selwin/python-user-agents
+user-agents
+
 # Library for writing reusable URL query filters
 # https://github.com/carltongibson/django-filter/blob/main/CHANGES.rst
 django-filter

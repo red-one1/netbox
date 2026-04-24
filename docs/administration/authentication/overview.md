@@ -6,6 +6,23 @@ Local user accounts and groups can be created in NetBox under the "Authenticatio
 
 At a minimum, each user account must have a username and password set. User accounts may also denote a first name, last name, and email address. [Permissions](../permissions.md) may also be assigned to individual users and/or groups as needed.
 
+### Passkeys
+
+NetBox can optionally allow users to authenticate with WebAuthn passkeys.
+
+```python
+PASSKEYS_ENABLED = True
+FIDO_SERVER_ID = 'netbox.example.com'
+FIDO_SERVER_NAME = 'NetBox'
+```
+
+When enabled, users can enroll one or more passkeys from the Passkeys tab under their account page. Those passkeys can then be used on the login page to start a session without entering a password.
+
+This capability is disabled by default. Existing username/password and SSO login methods remain available when passkeys are enabled.
+
+!!! warning
+    Passkeys should be used only over HTTPS, and `FIDO_SERVER_ID` should be set to the hostname users actually visit in their browser.
+
 ## Remote Authentication
 
 NetBox may be configured to provide user authenticate via a remote backend in addition to local authentication. This is done by setting the `REMOTE_AUTH_BACKEND` configuration parameter to a suitable backend class. NetBox provides several options for remote authentication.

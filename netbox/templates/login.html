@@ -4,6 +4,14 @@
 {% load static %}
 {% load i18n %}
 
+{% block head %}
+  {{ block.super }}
+  {% if settings.PASSKEYS_ENABLED %}
+    <script src="{% static 'passkeys/js/base64url.js' %}"></script>
+    <script src="{% static 'passkeys/js/helpers.js' %}"></script>
+  {% endif %}
+{% endblock %}
+
 {% block layout %}
 
   <div class="page page-center">
@@ -39,7 +47,7 @@
             <h2 class="text-center mb-4">{% trans "Log In" %}</h2>
 
             {# Login form #}
-            <form action="{% url 'login' %}" method="post">
+            <form action="{% url 'login' %}" method="post" id="loginForm">
               {% csrf_token %}
 
               {# Set post-login URL #}
@@ -50,7 +58,7 @@
               {% endif %}
 
               <div class="form-group mb-3">
-                <label for="id_username" class="form-label">{{ form.username.label }}</label>
+                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
                 {{ form.username }}
                 {% for error in form.username.errors %}
                   <div class="alert alert-danger">{{ error }}</div>
@@ -58,7 +66,7 @@
               </div>
 
               <div class="form-group">
-                <label for="id_password" class="form-label">{{ form.password.label }}</label>
+                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
                 {{ form.password }}
                 {% for error in form.password.errors %}
                   <div class="alert alert-danger">{{ error }}</div>
@@ -70,6 +78,15 @@
                   {% trans "Sign In" %}
                 </button>
               </div>
+
+              {% if settings.PASSKEYS_ENABLED %}
+                <div class="form-footer mt-2">
+                  <button type="button" class="btn btn-outline-secondary w-100" onclick="signInWithPasskey()">
+                    {% trans "Sign In With Passkey" %}
+                  </button>
+                </div>
+                <div id="passkey-error" class="form-text text-danger mt-2 d-none"></div>
+              {% endif %}
             </form>
           </div>
         {% endif %}
@@ -103,3 +120,66 @@
   </div>
 
 {% endblock layout %}
+
+{% block javascript %}
+  {{ block.super }}
+  {% if settings.PASSKEYS_ENABLED %}
+    <script>
+      function decodeAuthenticationOptions(options) {
+        options.publicKey.challenge = base64url.decode(options.publicKey.challenge);
+        for (const credential of options.publicKey.allowCredentials || []) {
+          credential.id = base64url.decode(credential.id);
+        }
+        return options;
+      }
+
+      function showPasskeyError(message) {
+        const node = document.getElementById('passkey-error');
+        node.textContent = message;
+        node.classList.remove('d-none');
+      }
+
+      async function signInWithPasskey() {
+        const username = document.getElementById('username').value.trim();
+        const nextField = document.querySelector('input[name="next"]');
+
+        try {
+          const optionsResponse = await fetch('{% url 'passkeys_api:authenticate_options' %}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': window.CSRF_TOKEN,
+            },
+            body: JSON.stringify(username ? {username} : {}),
+          });
+
+          if (!optionsResponse.ok) {
+            throw new Error('{% trans "Unable to start passkey sign-in." %}');
+          }
+
+          const optionsData = await optionsResponse.json();
+          const assertion = await navigator.credentials.get(decodeAuthenticationOptions(optionsData.options));
+          const verifyResponse = await fetch('{% url 'passkeys_api:authenticate_verify' %}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': window.CSRF_TOKEN,
+            },
+            body: JSON.stringify({
+              state_token: optionsData.state_token,
+              credential: publicKeyCredentialToJSON(assertion),
+            }),
+          });
+
+          if (!verifyResponse.ok) {
+            throw new Error('{% trans "Passkey authentication failed." %}');
+          }
+
+          window.location = nextField ? nextField.value : '{% url 'home' %}';
+        } catch (error) {
+          showPasskeyError(error.message);
+        }
+      }
+    </script>
+  {% endif %}
+{% endblock %}

@@ -13,6 +13,7 @@ urlpatterns = [
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
     path('subscriptions/', views.SubscriptionListView.as_view(), name='subscriptions'),
     path('preferences/', views.UserConfigView.as_view(), name='preferences'),
+    path('passkeys/', views.PasskeyListView.as_view(), name='passkeys'),
     path('password/', views.ChangePasswordView.as_view(), name='change_password'),
     path('api-tokens/', views.UserTokenListView.as_view(), name='usertoken_list'),
     path('api-tokens/add/', views.UserTokenEditView.as_view(), name='usertoken_add'),

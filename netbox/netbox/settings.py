@@ -142,6 +142,11 @@ LOGIN_REQUIRED = getattr(configuration, 'LOGIN_REQUIRED', True)
 LOGIN_TIMEOUT = getattr(configuration, 'LOGIN_TIMEOUT', None)
 LOGIN_FORM_HIDDEN = getattr(configuration, 'LOGIN_FORM_HIDDEN', False)
 LOGOUT_REDIRECT_URL = getattr(configuration, 'LOGOUT_REDIRECT_URL', 'home')
+PASSKEYS_ENABLED = getattr(configuration, 'PASSKEYS_ENABLED', False)
+# Allow PasskeyModelBackend to coexist with other backends and be used from
+# management-command / test contexts where no request object is available.
+PASSKEYS_ALLOW_EMPTY_RESPONSE = PASSKEYS_ENABLED
+PASSKEYS_ALLOW_NO_PASSKEY_FIELD = PASSKEYS_ENABLED
 MEDIA_ROOT = getattr(configuration, 'MEDIA_ROOT', os.path.join(BASE_DIR, 'media')).rstrip('/')
 METRICS_ENABLED = getattr(configuration, 'METRICS_ENABLED', False)
 PLUGINS = getattr(configuration, 'PLUGINS', [])
@@ -179,6 +184,9 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = getattr(configuration, 'SECURE_HSTS_INCLUDE_SUB
 SECURE_HSTS_PRELOAD = getattr(configuration, 'SECURE_HSTS_PRELOAD', False)
 SECURE_HSTS_SECONDS = getattr(configuration, 'SECURE_HSTS_SECONDS', 0)
 SECURE_SSL_REDIRECT = getattr(configuration, 'SECURE_SSL_REDIRECT', False)
+FIDO_SERVER_ID = getattr(configuration, 'FIDO_SERVER_ID', HOSTNAME)
+FIDO_SERVER_NAME = getattr(configuration, 'FIDO_SERVER_NAME', 'NetBox')
+KEY_ATTACHMENT = getattr(configuration, 'KEY_ATTACHMENT', None)
 SENTRY_CONFIG = getattr(configuration, 'SENTRY_CONFIG', {})
 # TODO: Remove in NetBox v4.5
 SENTRY_DSN = getattr(configuration, 'SENTRY_DSN', None)
@@ -443,6 +451,7 @@ INSTALLED_APPS = [
     'django_htmx',
     'django_tables2',
     'django_prometheus',
+    'passkeys',
     'strawberry_django',
     'mptt',
     'rest_framework',
@@ -538,6 +547,7 @@ if type(REMOTE_AUTH_BACKEND) not in (list, tuple):
     REMOTE_AUTH_BACKEND = [REMOTE_AUTH_BACKEND]
 AUTHENTICATION_BACKENDS = [
     *REMOTE_AUTH_BACKEND,
+    *(('passkeys.backend.PasskeyModelBackend',) if PASSKEYS_ENABLED else ()),
     'netbox.authentication.ObjectPermissionBackend',
 ]
 

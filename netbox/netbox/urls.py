@@ -52,6 +52,7 @@ _patterns = [
     path('api/virtualization/', include('virtualization.api.urls')),
     path('api/vpn/', include('vpn.api.urls')),
     path('api/wireless/', include('wireless.api.urls')),
+    path('api/passkeys/', include('passkeys.api.urls', namespace='passkeys_api')),
     path('api/status/', StatusView.as_view(), name='api-status'),
     path('api/authentication-check/', AuthenticationCheckView.as_view(), name='api-authentication-check'),
 

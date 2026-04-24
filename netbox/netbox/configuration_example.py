@@ -176,6 +176,19 @@ LOGIN_TIMEOUT = None
 # Hide the login form. Useful when only allowing SSO authentication.
 LOGIN_FORM_HIDDEN = False
 
+# Enable WebAuthn/passkey authentication for the NetBox web UI. Users can register and manage passkeys from their
+# account page, and may then use them for future login. This remains disabled by default.
+PASSKEYS_ENABLED = False
+
+# The relying party ID and display name presented during passkey registration/authentication. FIDO_SERVER_ID should
+# generally match the hostname users enter in their browser. HTTPS should be enabled when deploying passkeys.
+# FIDO_SERVER_ID = 'netbox.example.com'
+# FIDO_SERVER_NAME = 'NetBox'
+
+# Optionally restrict authenticator attachment during passkey enrollment. Set to 'platform' to prefer built-in
+# authenticators (e.g. Face ID, Touch ID, Windows Hello) or 'cross-platform' to prefer roaming security keys.
+# KEY_ATTACHMENT = 'platform'
+
 # The view name or URL to which users are redirected after logging out.
 LOGOUT_REDIRECT_URL = 'home'
 

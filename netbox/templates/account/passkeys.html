@@ -1,0 +1,177 @@
+{% extends 'account/base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "My Passkeys" %}{% endblock %}
+
+{% block head %}
+  {{ block.super }}
+  <script src="{% static 'passkeys/js/base64url.js' %}"></script>
+  <script src="{% static 'passkeys/js/helpers.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col col-md-12 text-end">
+      <button type="button" class="btn btn-primary my-3" onclick="registerPasskey()">
+        <span class="mdi mdi-plus-thick" aria-hidden="true"></span> {% trans "Add a Passkey" %}
+      </button>
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col col-md-12">
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover object-list">
+            <thead>
+              <tr>
+                <th>{% trans "Name" %}</th>
+                <th>{% trans "Platform" %}</th>
+                <th>{% trans "Added" %}</th>
+                <th>{% trans "Last Used" %}</th>
+                <th>{% trans "Enabled" %}</th>
+                <th class="text-end">{% trans "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for passkey in passkeys %}
+                <tr>
+                  <td>{{ passkey.name }}</td>
+                  <td>{{ passkey.platform|default:'-' }}</td>
+                  <td>{{ passkey.added_on|date:'SHORT_DATETIME_FORMAT' }}</td>
+                  <td>
+                    {% if passkey.last_used %}
+                      {{ passkey.last_used|date:'SHORT_DATETIME_FORMAT' }}
+                    {% else %}
+                      <span class="text-muted">{% trans "Never" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if passkey.enabled %}
+                      <span class="badge text-bg-success">{% trans "Enabled" %}</span>
+                    {% else %}
+                      <span class="badge text-bg-secondary">{% trans "Disabled" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="renamePasskey('{% url 'passkeys_api:detail' pk=passkey.pk %}', '{{ passkey.name|escapejs }}')">
+                      {% trans "Rename" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="togglePasskey('{% url 'passkeys_api:detail' pk=passkey.pk %}', {{ passkey.enabled|yesno:'false,true' }})">
+                      {% if passkey.enabled %}{% trans "Disable" %}{% else %}{% trans "Enable" %}{% endif %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePasskey('{% url 'passkeys_api:detail' pk=passkey.pk %}')">
+                      {% trans "Delete" %}
+                    </button>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="text-muted text-center py-5">{% trans "No passkeys found" %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script>
+    function decodeRegistrationOptions(options) {
+      options.publicKey.challenge = base64url.decode(options.publicKey.challenge);
+      options.publicKey.user.id = base64url.decode(options.publicKey.user.id);
+      for (const credential of options.publicKey.excludeCredentials || []) {
+        credential.id = base64url.decode(credential.id);
+      }
+      return options;
+    }
+
+    async function apiRequest(url, method, payload) {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': window.CSRF_TOKEN,
+        },
+        body: payload ? JSON.stringify(payload) : null,
+      });
+
+      if (!response.ok) {
+        let message = '{% trans "Request failed" %}';
+        try {
+          const data = await response.json();
+          message = data.detail || data.message || JSON.stringify(data);
+        } catch (error) {
+          message = await response.text() || message;
+        }
+        throw new Error(message);
+      }
+
+      return response.status === 204 ? null : response.json();
+    }
+
+    async function registerPasskey() {
+      const keyName = window.prompt('{% trans "Enter a name for this passkey" %}', '');
+      if (keyName === null) {
+        return;
+      }
+
+      try {
+        const begin = await apiRequest('{% url 'passkeys_api:register_options' %}', 'POST');
+        const options = decodeRegistrationOptions(begin.options);
+        const credential = await navigator.credentials.create(options);
+
+        await apiRequest('{% url 'passkeys_api:register_verify' %}', 'POST', {
+          state_token: begin.state_token,
+          key_name: keyName,
+          credential: publicKeyCredentialToJSON(credential),
+        });
+
+        window.location.reload();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+
+    async function renamePasskey(url, currentName) {
+      const name = window.prompt('{% trans "Rename passkey" %}', currentName);
+      if (name === null || name === currentName) {
+        return;
+      }
+
+      try {
+        await apiRequest(url, 'PATCH', {name});
+        window.location.reload();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+
+    async function togglePasskey(url, enabled) {
+      try {
+        await apiRequest(url, 'PATCH', {enabled});
+        window.location.reload();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+
+    async function deletePasskey(url) {
+      if (!window.confirm('{% trans "Delete this passkey?" %}')) {
+        return;
+      }
+
+      try {
+        await apiRequest(url, 'DELETE');
+        window.location.reload();
+      } catch (error) {
+        window.alert(error.message);
+      }
+    }
+  </script>
+{% endblock %}

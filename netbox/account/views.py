@@ -5,10 +5,11 @@ from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import update_last_login
 from django.contrib.auth.signals import user_logged_in
+from django.http import Http404
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render, resolve_url
 from django.urls import reverse
@@ -17,8 +18,10 @@ from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic import View
+from passkeys.models import UserPasskey
 from social_core.backends.utils import load_backends
 
+from account.forms import NetBoxAuthenticationForm
 from account.models import UserToken
 from core.models import ObjectChange
 from core.tables import ObjectChangeTable
@@ -90,7 +93,7 @@ class LoginView(View):
         return auth_backends
 
     def get(self, request):
-        form = AuthenticationForm(request)
+        form = NetBoxAuthenticationForm(request)
 
         if request.user.is_authenticated:
             logger = logging.getLogger('netbox.auth.login')
@@ -105,7 +108,7 @@ class LoginView(View):
 
     def post(self, request):
         logger = logging.getLogger('netbox.auth.login')
-        form = AuthenticationForm(request, data=request.POST)
+        form = NetBoxAuthenticationForm(request, data=request.POST)
 
         if form.is_valid():
             logger.debug("Login form validation was successful")
@@ -146,6 +149,7 @@ class LoginView(View):
         return render(request, self.template_name, {
             'form': form,
             'auth_backends': self.get_auth_backends(request),
+            'login_form_hidden': settings.LOGIN_FORM_HIDDEN,
         })
 
     def redirect_to_next(self, request, logger):
@@ -339,6 +343,21 @@ class UserTokenListView(LoginRequiredMixin, View):
             'tokens': tokens,
             'active_tab': 'api-tokens',
             'table': table,
+        })
+
+
+class PasskeyListView(LoginRequiredMixin, View):
+    template_name = 'account/passkeys.html'
+
+    def get(self, request):
+        if not settings.PASSKEYS_ENABLED:
+            raise Http404()
+
+        passkeys = UserPasskey.objects.filter(user=request.user).order_by('name')
+
+        return render(request, self.template_name, {
+            'active_tab': 'passkeys',
+            'passkeys': passkeys,
         })
 
 
