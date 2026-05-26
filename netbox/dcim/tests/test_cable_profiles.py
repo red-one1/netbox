@@ -2,6 +2,7 @@ from django.test import tag
 
 from dcim.cable_profiles import (
     Breakout1C4Px4C1PCableProfile,
+    Breakout1C8Px8C1PCableProfile,
     Single1C1PCableProfile,
     Single1C4PCableProfile,
     Trunk2C2PCableProfile,
@@ -226,6 +227,30 @@ class CableProfilePeerTerminationTestCase(CablePathTestCase):
 
         # Test B→A direction (4 connectors, 1 position each → one connector)
         b_pairs = [(iface, 1) for iface in self.interfaces[9:13]]
+        self._assert_batch_matches_singular(profile, b_pairs)
+
+    def test_breakout_1c8p_8c1p_profile(self):
+        """
+        Batch resolution on an 1C8P:8C1P breakout profile should map each
+        A-side position to a distinct B-side connector.
+        """
+        cable = Cable(
+            profile=CableProfileChoices.BREAKOUT_1C8P_8C1P,
+            a_terminations=[self.interfaces[0]],
+            b_terminations=self.interfaces[1:9],
+        )
+        cable.clean()
+        cable.save()
+
+        self.interfaces[0].refresh_from_db()
+        for iface in self.interfaces[1:9]:
+            iface.refresh_from_db()
+        profile = Breakout1C8Px8C1PCableProfile()
+
+        a_pairs = [(self.interfaces[0], pos) for pos in self.interfaces[0].cable_positions]
+        self._assert_batch_matches_singular(profile, a_pairs)
+
+        b_pairs = [(iface, 1) for iface in self.interfaces[1:9]]
         self._assert_batch_matches_singular(profile, b_pairs)
 
     def test_multi_position_single_termination(self):
